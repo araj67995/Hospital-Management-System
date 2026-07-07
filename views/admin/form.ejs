@@ -1,0 +1,42 @@
+<%- include('../partials/header') %>
+<form class="panel form-grid needs-validation" method="post" enctype="multipart/form-data" action="<%= basePath %>/<%= resource %><%= item._id ? '/' + item._id + '?_method=PUT' : '' %>" novalidate>
+  <% config.fields.forEach(field => { %>
+    <div class="<%= field.type === 'textarea' ? 'span-2' : '' %>">
+      <label class="form-label"><%= field.label %></label>
+      <% if (field.type === 'select') { %>
+        <select class="form-select" name="<%= field.name %>" <%= field.required ? 'required' : '' %>>
+          <% field.options.forEach(option => { %>
+            <option value="<%= option %>" <%= item[field.name] === option ? 'selected' : '' %>><%= option %></option>
+          <% }) %>
+        </select>
+      <% } else if (field.type === 'ref') { %>
+        <select class="form-select" name="<%= field.name %>" <%= field.required ? 'required' : '' %>>
+          <option value="">Select</option>
+          <% (options[field.name] || []).forEach(option => { %>
+            <option value="<%= option._id %>" <%= String(item[field.name] || '') === String(option._id) ? 'selected' : '' %>><%= option[field.ref.label] %></option>
+          <% }) %>
+        </select>
+      <% } else if (field.type === 'textarea') { %>
+        <textarea class="form-control" name="<%= field.name %>" rows="3" <%= field.required ? 'required' : '' %>><%= item[field.name] || '' %></textarea>
+      <% } else if (field.type === 'file') { %>
+        <input class="form-control" type="file" name="<%= field.name %>" <%= field.required && !item._id ? 'required' : '' %>>
+        <% if (item[field.name]) { %><a class="small d-inline-block mt-1" href="<%= item[field.name] %>" target="_blank">Current file</a><% } %>
+      <% } else { %>
+        <% let value = item[field.name] || ''; if (field.type === 'date' && value) value = new Date(value).toISOString().slice(0, 10); %>
+        <input class="form-control" type="<%= field.type || 'text' %>" name="<%= field.name %>" value="<%= value %>" <%= field.required && !(item._id && field.name === 'password') ? 'required' : '' %>>
+      <% } %>
+    </div>
+  <% }) %>
+  <% if (resource === 'prescriptions') { %>
+    <div class="span-2 checks">
+      <label><input type="checkbox" name="morning"> Morning</label>
+      <label><input type="checkbox" name="afternoon"> Afternoon</label>
+      <label><input type="checkbox" name="night"> Night</label>
+    </div>
+  <% } %>
+  <div class="span-2 form-actions">
+    <a class="btn btn-outline-secondary" href="<%= basePath %>/<%= resource %>">Cancel</a>
+    <button class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+  </div>
+</form>
+<%- include('../partials/footer') %>
