@@ -1,6 +1,7 @@
 const meta = require('./meta');
 const bcrypt = require('bcrypt');
 const User = require('../models/User');
+const Doctor = require('../models/Doctor');
 
 function getNested(obj, path) {
   return path.split('.').reduce((acc, key) => (acc ? acc[key] : undefined), obj);
@@ -117,7 +118,15 @@ exports.form = (resource, basePath = '/admin') => async (req, res, next) => {
 exports.create = (resource, basePath = '/admin') => async (req, res, next) => {
   try {
     const config = meta[resource];
-    const item = await config.model.create(normalizeBody(resource, req.body, req.file));
+    const data = normalizeBody(resource, req.body, req.file);
+    if (resource === 'patients' && req.session.user.role === 'doctor' && req.session.user.doctor) {
+      data.assignedDoctor = req.session.user.doctor;
+      if (!data.department) {
+        const doctor = await Doctor.findById(req.session.user.doctor).select('department').lean();
+        data.department = doctor?.department;
+      }
+    }
+    const item = await config.model.create(data);
     if (resource === 'doctors') {
       await User.create({
         name: item.name,
@@ -138,6 +147,13 @@ exports.update = (resource, basePath = '/admin') => async (req, res, next) => {
   try {
     const config = meta[resource];
     const data = normalizeBody(resource, req.body, req.file);
+    if (resource === 'patients' && req.session.user.role === 'doctor' && req.session.user.doctor) {
+      data.assignedDoctor = req.session.user.doctor;
+      if (!data.department) {
+        const doctor = await Doctor.findById(req.session.user.doctor).select('department').lean();
+        data.department = doctor?.department;
+      }
+    }
     if (resource === 'receptionists' && data.password) data.password = await bcrypt.hash(data.password, 12);
     const item = await config.model.findByIdAndUpdate(req.params.id, data, { runValidators: true, new: true });
     if (resource === 'doctors' && item) {
