@@ -8,12 +8,14 @@ const router = express.Router();
 
 router.use(requireRole('patient'));
 router.get('/', dashboard.patient);
-router.get('/profile', dashboard.patient);
+router.get('/profile', patient.profile);
 router.get('/profile/edit', patient.profileForm);
 router.post('/profile', upload.single('photo'), patient.updateProfile);
-router.get('/appointments', dashboard.patient);
-router.get('/prescriptions', dashboard.patient);
-router.get('/reports', dashboard.patient);
-router.get('/bills', dashboard.patient);
+router.get('/appointments', patient.appointments);
+router.get('/appointments/new', patient.appointmentForm);
+router.post('/appointments', patient.bookAppointment);
+router.get('/prescriptions', patient.prescriptions);
+router.get('/reports', patient.reports);
+router.get('/bills', patient.bills);
 
 module.exports = router;

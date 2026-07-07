@@ -28,6 +28,58 @@ document.querySelectorAll('.data-table th').forEach((header, index) => {
   });
 });
 
+document.addEventListener('click', (event) => {
+  const addButton = event.target.closest('[data-add-medicine]');
+  const removeButton = event.target.closest('[data-remove-medicine]');
+
+  if (addButton) {
+    const list = document.querySelector('[data-medicine-list]');
+    const index = list.querySelectorAll('[data-medicine-row]').length;
+    const row = document.createElement('div');
+    row.className = 'medicine-row';
+    row.dataset.medicineRow = '';
+    row.innerHTML = `
+      <input class="form-control" name="medicines[${index}][name]" placeholder="Medicine" required>
+      <input class="form-control" name="medicines[${index}][dosage]" placeholder="Dosage">
+      <input class="form-control" type="number" name="medicines[${index}][days]" placeholder="Days">
+      <label><input type="checkbox" name="medicines[${index}][morning]" value="true"> Morning</label>
+      <label><input type="checkbox" name="medicines[${index}][afternoon]" value="true"> Afternoon</label>
+      <label><input type="checkbox" name="medicines[${index}][night]" value="true"> Night</label>
+      <input class="form-control" name="medicines[${index}][instructions]" placeholder="Instructions">
+      <button class="btn btn-outline-danger btn-sm" type="button" data-remove-medicine><i class="fa-solid fa-trash"></i></button>
+    `;
+    list.appendChild(row);
+  }
+
+  if (removeButton) {
+    const rows = document.querySelectorAll('[data-medicine-row]');
+    if (rows.length > 1) removeButton.closest('[data-medicine-row]').remove();
+  }
+});
+
+document.querySelectorAll('[data-max-checks]').forEach((group) => {
+  group.addEventListener('change', () => {
+    const max = Number(group.dataset.maxChecks || 0);
+    if (!max) return;
+    const checked = group.querySelectorAll('input[type="checkbox"]:checked');
+    if (checked.length > max) {
+      checked[checked.length - 1].checked = false;
+      if (window.Swal) Swal.fire({ icon: 'info', title: `Choose only ${max}` });
+    }
+  });
+});
+
+function syncRefDetail(select) {
+  const detailInput = select.parentElement.querySelector('[data-ref-detail]');
+  if (!detailInput) return;
+  detailInput.value = select.selectedOptions[0]?.dataset.detail || '';
+}
+
+document.querySelectorAll('[data-ref-select]').forEach((select) => {
+  syncRefDetail(select);
+  select.addEventListener('change', () => syncRefDetail(select));
+});
+
 function makeChart(id, type, labels, data, color) {
   const canvas = document.getElementById(id);
   if (!canvas || !window.Chart) return;
