@@ -1,6 +1,12 @@
 const User = require('../models/User');
 const Patient = require('../models/Patient');
 
+async function nextPatientId() {
+  const latest = await Patient.findOne({ patientId: /^PAT\d+$/ }).sort({ patientId: -1 }).select('patientId').lean();
+  const latestNumber = latest?.patientId ? Number(latest.patientId.replace('PAT', '')) : 0;
+  return `PAT${String(latestNumber + 1).padStart(5, '0')}`;
+}
+
 exports.loginPage = (req, res) => {
   if (req.session.user) return res.redirect(`/${req.session.user.role}`);
   res.render('auth/login', { title: 'Login' });
@@ -46,9 +52,8 @@ exports.register = async (req, res, next) => {
       return res.redirect('/register');
     }
 
-    const count = await Patient.countDocuments();
     const patient = await Patient.create({
-      patientId: `PAT${String(count + 1).padStart(5, '0')}`,
+      patientId: await nextPatientId(),
       name: req.body.name,
       fatherName: req.body.fatherName,
       gender: req.body.gender,

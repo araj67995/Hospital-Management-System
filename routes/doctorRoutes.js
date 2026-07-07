@@ -1,5 +1,6 @@
 const express = require('express');
 const dashboard = require('../controllers/dashboardController');
+const doctor = require('../controllers/doctorController');
 const crud = require('../controllers/crudController');
 const meta = require('../controllers/meta');
 const { requireRole } = require('../middleware/auth');
@@ -19,6 +20,7 @@ router.get('/', dashboard.doctor);
   router.put(`/${resource}/:id`, upload.single(field), crud.update(resource, '/doctor'));
 });
 
-router.get('/schedule', crud.list('appointments', '/doctor'));
+router.get('/schedule', doctor.scheduleForm);
+router.post('/schedule', doctor.updateSchedule);
 
 module.exports = router;

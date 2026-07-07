@@ -48,4 +48,12 @@ app.use((err, req, res, next) => {
 });
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Hospital Management System running at http://localhost:${port}`));
+const server = app.listen(port, () => console.log(`Hospital Management System running at http://localhost:${port}`));
+
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${port} is already in use. Stop the old server or set a different PORT in .env.`);
+    process.exit(1);
+  }
+  throw error;
+});

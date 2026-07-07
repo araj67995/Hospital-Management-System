@@ -1,21 +1,50 @@
 <%- include('../partials/header') %>
 <form class="panel form-grid needs-validation" method="post" enctype="multipart/form-data" action="<%= basePath %>/<%= resource %><%= item._id ? '/' + item._id + '?_method=PUT' : '' %>" novalidate>
   <% config.fields.forEach(field => { %>
-    <div class="<%= field.type === 'textarea' ? 'span-2' : '' %>">
+    <div class="<%= field.type === 'textarea' || (resource === 'prescriptions' && field.name === 'medicines') ? 'span-2' : '' %>">
       <label class="form-label"><%= field.label %></label>
-      <% if (field.type === 'select') { %>
+      <% if (resource === 'prescriptions' && field.name === 'medicines') { %>
+        <div class="span-2 medicine-section" data-medicine-list>
+          <div class="panel-head">
+            <h2>Medicines</h2>
+            <button class="btn btn-outline-primary btn-sm" type="button" data-add-medicine><i class="fa-solid fa-plus"></i> Add Medicine</button>
+          </div>
+          <% const meds = item.medicines && item.medicines.length ? item.medicines : [{ name: '', dosage: '', morning: false, afternoon: false, night: false, days: '', instructions: '' }]; %>
+          <% meds.forEach((medicine, index) => { %>
+            <div class="medicine-row" data-medicine-row>
+              <input class="form-control" name="medicines[<%= index %>][name]" value="<%= medicine.name || '' %>" placeholder="Medicine" required>
+              <input class="form-control" name="medicines[<%= index %>][dosage]" value="<%= medicine.dosage || '' %>" placeholder="Dosage">
+              <input class="form-control" type="number" name="medicines[<%= index %>][days]" value="<%= medicine.days || '' %>" placeholder="Days">
+              <label><input type="checkbox" name="medicines[<%= index %>][morning]" value="true" <%= medicine.morning ? 'checked' : '' %>> Morning</label>
+              <label><input type="checkbox" name="medicines[<%= index %>][afternoon]" value="true" <%= medicine.afternoon ? 'checked' : '' %>> Afternoon</label>
+              <label><input type="checkbox" name="medicines[<%= index %>][night]" value="true" <%= medicine.night ? 'checked' : '' %>> Night</label>
+              <input class="form-control" name="medicines[<%= index %>][instructions]" value="<%= medicine.instructions || '' %>" placeholder="Instructions">
+              <button class="btn btn-outline-danger btn-sm" type="button" data-remove-medicine><i class="fa-solid fa-trash"></i></button>
+            </div>
+          <% }) %>
+        </div>
+      <% } else if (field.type === 'checkbox-group') { %>
+        <div class="check-grid" data-max-checks="<%= field.max || '' %>">
+          <% field.options.forEach(option => { %>
+            <label><input type="checkbox" name="<%= field.name %>" value="<%= option %>" <%= (item[field.name] || []).includes(option) ? 'checked' : '' %>> <%= option %></label>
+          <% }) %>
+        </div>
+        <% if (field.max) { %><small class="text-muted">Choose up to <%= field.max %>.</small><% } %>
+      <% } else if (field.type === 'select') { %>
         <select class="form-select" name="<%= field.name %>" <%= field.required ? 'required' : '' %>>
           <% field.options.forEach(option => { %>
             <option value="<%= option %>" <%= item[field.name] === option ? 'selected' : '' %>><%= option %></option>
           <% }) %>
         </select>
       <% } else if (field.type === 'ref') { %>
-        <select class="form-select" name="<%= field.name %>" <%= field.required ? 'required' : '' %>>
+        <select class="form-select" name="<%= field.name %>" <%= field.required ? 'required' : '' %> data-ref-select>
           <option value="">Select</option>
           <% (options[field.name] || []).forEach(option => { %>
-            <option value="<%= option._id %>" <%= String(item[field.name] || '') === String(option._id) ? 'selected' : '' %>><%= option[field.ref.label] %></option>
+            <% const primary = option[field.ref.label] || ''; const detail = field.ref.detail ? option[field.ref.detail] : ''; %>
+            <option value="<%= option._id %>" data-detail="<%= detail %>" <%= String(item[field.name] || '') === String(option._id) ? 'selected' : '' %>><%= primary %><%= detail ? ' - ' + detail : '' %></option>
           <% }) %>
         </select>
+        <% if (field.ref.detail) { %><input class="form-control mt-2" type="text" data-ref-detail placeholder="Name will appear here" readonly><% } %>
       <% } else if (field.type === 'textarea') { %>
         <textarea class="form-control" name="<%= field.name %>" rows="3" <%= field.required ? 'required' : '' %>><%= item[field.name] || '' %></textarea>
       <% } else if (field.type === 'file') { %>
@@ -23,17 +52,11 @@
         <% if (item[field.name]) { %><a class="small d-inline-block mt-1" href="<%= item[field.name] %>" target="_blank">Current file</a><% } %>
       <% } else { %>
         <% let value = item[field.name] || ''; if (field.type === 'date' && value) value = new Date(value).toISOString().slice(0, 10); %>
-        <input class="form-control" type="<%= field.type || 'text' %>" name="<%= field.name %>" value="<%= value %>" <%= field.required && !(item._id && field.name === 'password') ? 'required' : '' %>>
+        <input class="form-control" type="<%= field.type || 'text' %>" name="<%= field.name %>" value="<%= value %>" <%= field.auto ? 'readonly' : '' %> <%= field.required && !(item._id && field.name === 'password') && !field.auto ? 'required' : '' %>>
+        <% if (field.auto) { %><small class="text-muted">Auto-generated and cannot be edited.</small><% } %>
       <% } %>
     </div>
   <% }) %>
-  <% if (resource === 'prescriptions') { %>
-    <div class="span-2 checks">
-      <label><input type="checkbox" name="morning"> Morning</label>
-      <label><input type="checkbox" name="afternoon"> Afternoon</label>
-      <label><input type="checkbox" name="night"> Night</label>
-    </div>
-  <% } %>
   <div class="span-2 form-actions">
     <a class="btn btn-outline-secondary" href="<%= basePath %>/<%= resource %>">Cancel</a>
     <button class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save</button>

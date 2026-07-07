@@ -2,6 +2,7 @@ const meta = require('./meta');
 const bcrypt = require('bcrypt');
 const User = require('../models/User');
 const Doctor = require('../models/Doctor');
+const Appointment = require('../models/Appointment');
 
 function getNested(obj, path) {
   return path.split('.').reduce((acc, key) => (acc ? acc[key] : undefined), obj);
@@ -14,8 +15,9 @@ function formatValue(value) {
 }
 
 async function nextCode(Model, prefix, field) {
-  const count = await Model.countDocuments();
-  return `${prefix}${String(count + 1).padStart(5, '0')}`;
+  const latest = await Model.findOne({ [field]: new RegExp(`^${prefix}\\d+$`) }).sort({ [field]: -1 }).select(field).lean();
+  const latestNumber = latest?.[field] ? Number(String(latest[field]).replace(prefix, '')) : 0;
+  return `${prefix}${String(latestNumber + 1).padStart(5, '0')}`;
 }
 
 async function loadOptions(resource) {
@@ -32,8 +34,13 @@ function normalizeBody(resource, body, file) {
   const data = { ...(config.fixed || {}) };
   for (const field of config.fields) {
     if (field.virtual || field.type === 'file') continue;
+    if (field.auto) continue;
     if (resource === 'receptionists' && field.name === 'password' && !body.password) continue;
     if (resource === 'doctors' && field.name === 'password') continue;
+    if (field.type === 'checkbox-group') {
+      const values = body[field.name] ? [].concat(body[field.name]) : [];
+      data[field.name] = field.max ? values.slice(0, field.max) : values;
+    } else
     if (field.name === 'active') data[field.name] = body[field.name] === 'true';
     else
     if (field.type === 'number') data[field.name] = Number(body[field.name] || 0);
@@ -44,17 +51,18 @@ function normalizeBody(resource, body, file) {
   if (file && config.uploadField) data[config.uploadField] = `/${file.path.replace(/\\/g, '/')}`;
 
   if (resource === 'prescriptions') {
-    data.medicines = [
-      {
-        name: body.medicineName,
-        dosage: body.dosage,
-        morning: Boolean(body.morning),
-        afternoon: Boolean(body.afternoon),
-        night: Boolean(body.night),
-        days: Number(body.days || 0),
-        instructions: body.instructions
-      }
-    ].filter((medicine) => medicine.name);
+    const medicines = Array.isArray(body.medicines) ? body.medicines : Object.values(body.medicines || {});
+    data.medicines = medicines
+      .map((medicine) => ({
+        name: medicine.name,
+        dosage: medicine.dosage,
+        morning: Boolean(medicine.morning),
+        afternoon: Boolean(medicine.afternoon),
+        night: Boolean(medicine.night),
+        days: Number(medicine.days || 0),
+        instructions: medicine.instructions
+      }))
+      .filter((medicine) => medicine.name);
   }
 
   return data;
@@ -119,6 +127,22 @@ exports.create = (resource, basePath = '/admin') => async (req, res, next) => {
   try {
     const config = meta[resource];
     const data = normalizeBody(resource, req.body, req.file);
+    if (resource === 'prescriptions') {
+      const appointment = await Appointment.findById(data.appointment).lean();
+      if (!appointment) {
+        req.flash('error', 'Please select a valid appointment ID');
+        return res.redirect('back');
+      }
+      if (req.session.user.role === 'doctor' && String(appointment.doctor) !== String(req.session.user.doctor)) {
+        req.flash('error', 'You can add prescriptions only for your own appointments');
+        return res.redirect('back');
+      }
+      data.patient = appointment.patient;
+      data.doctor = appointment.doctor;
+    }
+    for (const field of config.fields.filter((itemField) => itemField.auto)) {
+      data[field.name] = await nextCode(config.model, field.auto, field.name);
+    }
     if (resource === 'patients' && req.session.user.role === 'doctor' && req.session.user.doctor) {
       data.assignedDoctor = req.session.user.doctor;
       if (!data.department) {
@@ -147,6 +171,22 @@ exports.update = (resource, basePath = '/admin') => async (req, res, next) => {
   try {
     const config = meta[resource];
     const data = normalizeBody(resource, req.body, req.file);
+    if (resource === 'prescriptions') {
+      const appointment = await Appointment.findById(data.appointment).lean();
+      if (!appointment) {
+        req.flash('error', 'Please select a valid appointment ID');
+        return res.redirect('back');
+      }
+      if (req.session.user.role === 'doctor' && String(appointment.doctor) !== String(req.session.user.doctor)) {
+        req.flash('error', 'You can edit prescriptions only for your own appointments');
+        return res.redirect('back');
+      }
+      data.patient = appointment.patient;
+      data.doctor = appointment.doctor;
+    }
+    for (const field of config.fields.filter((itemField) => itemField.auto)) {
+      delete data[field.name];
+    }
     if (resource === 'patients' && req.session.user.role === 'doctor' && req.session.user.doctor) {
       data.assignedDoctor = req.session.user.doctor;
       if (!data.department) {

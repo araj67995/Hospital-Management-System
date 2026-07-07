@@ -10,7 +10,7 @@ const Prescription = require('../models/Prescription');
 const MedicalReport = require('../models/MedicalReport');
 const User = require('../models/User');
 
-const ref = (model, label, value = '_id') => ({ model, label, value });
+const ref = (model, label, value = '_id', detail = null) => ({ model, label, value, detail });
 
 module.exports = {
   departments: {
@@ -58,6 +58,7 @@ module.exports = {
       { name: 'department', label: 'Department', type: 'ref', required: true, ref: ref(Department, 'name') },
       { name: 'consultationFee', label: 'Consultation Fee', type: 'number' },
       { name: 'availability', label: 'Availability' },
+      { name: 'scheduleDays', label: 'Schedule Days', type: 'checkbox-group', max: 3, options: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] },
       { name: 'profilePhoto', label: 'Profile Photo', type: 'file' }
     ]
   },
@@ -83,7 +84,7 @@ module.exports = {
       { name: 'emergencyContact', label: 'Emergency Contact' },
       { name: 'disease', label: 'Disease' },
       { name: 'department', label: 'Department', type: 'ref', ref: ref(Department, 'name') },
-      { name: 'assignedDoctor', label: 'Assigned Doctor', type: 'ref', ref: ref(Doctor, 'name') },
+      { name: 'assignedDoctor', label: 'Assigned Doctor ID', type: 'ref', ref: ref(Doctor, 'doctorId', '_id', 'name') },
       { name: 'admissionDate', label: 'Admission Date', type: 'date' },
       { name: 'dischargeDate', label: 'Discharge Date', type: 'date' },
       { name: 'status', label: 'Status', type: 'select', options: ['OPD', 'Admitted', 'Discharged'] },
@@ -98,8 +99,8 @@ module.exports = {
     listFields: ['appointmentNo', 'patient.name', 'doctor.name', 'department.name', 'date', 'time', 'status'],
     fields: [
       { name: 'appointmentNo', label: 'Appointment Number', required: true, auto: 'APT' },
-      { name: 'patient', label: 'Patient', type: 'ref', required: true, ref: ref(Patient, 'name') },
-      { name: 'doctor', label: 'Doctor', type: 'ref', required: true, ref: ref(Doctor, 'name') },
+      { name: 'patient', label: 'Patient ID', type: 'ref', required: true, ref: ref(Patient, 'patientId', '_id', 'name') },
+      { name: 'doctor', label: 'Doctor ID', type: 'ref', required: true, ref: ref(Doctor, 'doctorId', '_id', 'name') },
       { name: 'department', label: 'Department', type: 'ref', required: true, ref: ref(Department, 'name') },
       { name: 'date', label: 'Date', type: 'date', required: true },
       { name: 'time', label: 'Time', type: 'time', required: true },
@@ -114,14 +115,14 @@ module.exports = {
     populate: ['patient', 'room', 'doctor'],
     listFields: ['patient.name', 'room.roomNumber', 'ward', 'bedNumber', 'admissionDate', 'expectedDischarge', 'status'],
     fields: [
-      { name: 'patient', label: 'Patient', type: 'ref', required: true, ref: ref(Patient, 'name') },
+      { name: 'patient', label: 'Patient ID', type: 'ref', required: true, ref: ref(Patient, 'patientId', '_id', 'name') },
       { name: 'room', label: 'Room', type: 'ref', required: true, ref: ref(Room, 'roomNumber') },
       { name: 'ward', label: 'Ward' },
       { name: 'bedNumber', label: 'Bed Number', required: true },
       { name: 'admissionDate', label: 'Admission Date', type: 'date' },
       { name: 'expectedDischarge', label: 'Expected Discharge', type: 'date' },
       { name: 'dischargeDate', label: 'Discharge Date', type: 'date' },
-      { name: 'doctor', label: 'Doctor', type: 'ref', required: true, ref: ref(Doctor, 'name') },
+      { name: 'doctor', label: 'Doctor ID', type: 'ref', required: true, ref: ref(Doctor, 'doctorId', '_id', 'name') },
       { name: 'status', label: 'Status', type: 'select', options: ['Admitted', 'Discharged'] }
     ]
   },
@@ -166,7 +167,7 @@ module.exports = {
     listFields: ['billNo', 'patient.name', 'registrationFee', 'consultationFee', 'total', 'paidAmount', 'dueAmount', 'status'],
     fields: [
       { name: 'billNo', label: 'Bill Number', required: true, auto: 'BIL' },
-      { name: 'patient', label: 'Patient', type: 'ref', required: true, ref: ref(Patient, 'name') },
+      { name: 'patient', label: 'Patient ID', type: 'ref', required: true, ref: ref(Patient, 'patientId', '_id', 'name') },
       { name: 'appointment', label: 'Appointment', type: 'ref', ref: ref(Appointment, 'appointmentNo') },
       { name: 'registrationFee', label: 'Registration Fee', type: 'number' },
       { name: 'consultationFee', label: 'Consultation Fee', type: 'number' },
@@ -185,17 +186,12 @@ module.exports = {
     singular: 'Prescription',
     model: Prescription,
     populate: ['patient', 'doctor', 'appointment'],
-    listFields: ['patient.name', 'doctor.name', 'diagnosis', 'createdAt'],
+    listFields: ['appointment.appointmentNo', 'patient.name', 'doctor.name', 'diagnosis', 'createdAt'],
     fields: [
-      { name: 'patient', label: 'Patient', type: 'ref', required: true, ref: ref(Patient, 'name') },
-      { name: 'doctor', label: 'Doctor', type: 'ref', required: true, ref: ref(Doctor, 'name') },
-      { name: 'appointment', label: 'Appointment', type: 'ref', ref: ref(Appointment, 'appointmentNo') },
+      { name: 'appointment', label: 'Appointment ID', type: 'ref', required: true, ref: ref(Appointment, 'appointmentNo') },
       { name: 'diagnosis', label: 'Diagnosis', type: 'textarea' },
       { name: 'notes', label: 'Medical Notes', type: 'textarea' },
-      { name: 'medicineName', label: 'Medicine', virtual: true },
-      { name: 'dosage', label: 'Dosage', virtual: true },
-      { name: 'days', label: 'Days', type: 'number', virtual: true },
-      { name: 'instructions', label: 'Instructions', virtual: true }
+      { name: 'medicines', label: 'Medicines', virtual: true }
     ]
   },
   reports: {
@@ -206,8 +202,8 @@ module.exports = {
     listFields: ['title', 'reportType', 'patient.name', 'doctor.name', 'createdAt'],
     uploadField: 'filePath',
     fields: [
-      { name: 'patient', label: 'Patient', type: 'ref', required: true, ref: ref(Patient, 'name') },
-      { name: 'doctor', label: 'Doctor', type: 'ref', ref: ref(Doctor, 'name') },
+      { name: 'patient', label: 'Patient ID', type: 'ref', required: true, ref: ref(Patient, 'patientId', '_id', 'name') },
+      { name: 'doctor', label: 'Doctor ID', type: 'ref', ref: ref(Doctor, 'doctorId', '_id', 'name') },
       { name: 'reportType', label: 'Report Type', type: 'select', options: ['X-Ray', 'MRI', 'CT Scan', 'Blood Test', 'ECG', 'Other Reports'], required: true },
       { name: 'title', label: 'Title', required: true },
       { name: 'filePath', label: 'Report File', type: 'file', required: true },
