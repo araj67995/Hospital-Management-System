@@ -39,6 +39,20 @@ module.exports = {
       { name: 'active', label: 'Active', type: 'select', options: ['true', 'false'] }
     ]
   },
+  pharmacists: {
+    title: 'Medicine Shop Staff',
+    singular: 'Pharmacist',
+    model: User,
+    populate: [],
+    fixed: { role: 'pharmacist' },
+    listFields: ['name', 'email', 'active'],
+    fields: [
+      { name: 'name', label: 'Name', required: true },
+      { name: 'email', label: 'Email', type: 'email', required: true },
+      { name: 'password', label: 'Password', type: 'password', required: true },
+      { name: 'active', label: 'Active', type: 'select', options: ['true', 'false'] }
+    ]
+  },
   doctors: {
     title: 'Doctors',
     singular: 'Doctor',
@@ -146,7 +160,7 @@ module.exports = {
     singular: 'Medicine',
     model: Medicine,
     populate: [],
-    listFields: ['name', 'company', 'batchNumber', 'expiryDate', 'quantity', 'sellingPrice'],
+    listFields: ['name', 'company', 'batchNumber', 'expiryDate', 'quantity', 'unitName', 'perUnitPrice', 'perPiecePrice'],
     fields: [
       { name: 'name', label: 'Medicine Name', required: true },
       { name: 'company', label: 'Company' },
@@ -156,7 +170,10 @@ module.exports = {
       { name: 'quantity', label: 'Quantity', type: 'number' },
       { name: 'lowStockLimit', label: 'Low Stock Limit', type: 'number' },
       { name: 'purchasePrice', label: 'Purchase Price', type: 'number' },
-      { name: 'sellingPrice', label: 'Selling Price', type: 'number' }
+      { name: 'sellingPrice', label: 'Selling Price', type: 'number' },
+      { name: 'unitName', label: 'Unit Name', type: 'select', options: ['Tablet', 'Bottle', 'Packet', 'Strip', 'Injection', 'Other'] },
+      { name: 'perUnitPrice', label: 'Per Unit Price', type: 'number' },
+      { name: 'perPiecePrice', label: 'Per Piece Price', type: 'number' }
     ]
   },
   bills: {
@@ -164,7 +181,7 @@ module.exports = {
     singular: 'Bill',
     model: Bill,
     populate: ['patient', 'appointment'],
-    listFields: ['billNo', 'patient.name', 'registrationFee', 'consultationFee', 'total', 'paidAmount', 'dueAmount', 'status'],
+    listFields: ['billNo', 'patient.name', 'consultationFee', 'roomCharges', 'medicineCharges', 'testCharges', 'surgeryCharges', 'total', 'dueAmount', 'status'],
     fields: [
       { name: 'billNo', label: 'Bill Number', required: true, auto: 'BIL' },
       { name: 'patient', label: 'Patient ID', type: 'ref', required: true, ref: ref(Patient, 'patientId', '_id', 'name') },

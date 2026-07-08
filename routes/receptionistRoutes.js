@@ -10,7 +10,7 @@ const router = express.Router();
 router.use(requireRole('receptionist'));
 router.get('/', dashboard.receptionist);
 
-['patients', 'appointments', 'admissions', 'bills'].forEach((resource) => {
+['patients', 'appointments', 'admissions', 'bills', 'medicines'].forEach((resource) => {
   const field = meta[resource].uploadField || 'attachment';
   router.get(`/${resource}`, crud.list(resource, '/receptionist'));
   router.get(`/${resource}/new`, crud.form(resource, '/receptionist'));

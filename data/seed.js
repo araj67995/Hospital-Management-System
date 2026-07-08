@@ -10,6 +10,7 @@ const Admission = require('../models/Admission');
 const Room = require('../models/Room');
 const Medicine = require('../models/Medicine');
 const Bill = require('../models/Bill');
+const PharmacyBill = require('../models/PharmacyBill');
 const Prescription = require('../models/Prescription');
 const MedicalReport = require('../models/MedicalReport');
 
@@ -25,6 +26,7 @@ async function seed() {
     Room.deleteMany(),
     Medicine.deleteMany(),
     Bill.deleteMany(),
+    PharmacyBill.deleteMany(),
     Prescription.deleteMany(),
     MedicalReport.deleteMany()
   ]);
@@ -136,8 +138,8 @@ async function seed() {
   });
 
   await Medicine.insertMany([
-    { name: 'Paracetamol', company: 'HealthLabs', batchNumber: 'PCM-2401', quantity: 8, lowStockLimit: 10, purchasePrice: 1.5, sellingPrice: 3 },
-    { name: 'Amoxicillin', company: 'MediCore', batchNumber: 'AMX-2404', quantity: 60, lowStockLimit: 15, purchasePrice: 5, sellingPrice: 9 }
+    { name: 'Paracetamol', company: 'HealthLabs', batchNumber: 'PCM-2401', quantity: 8, lowStockLimit: 10, purchasePrice: 1.5, sellingPrice: 30, unitName: 'Strip', perUnitPrice: 30, perPiecePrice: 3 },
+    { name: 'Amoxicillin', company: 'MediCore', batchNumber: 'AMX-2404', quantity: 60, lowStockLimit: 15, purchasePrice: 5, sellingPrice: 90, unitName: 'Strip', perUnitPrice: 90, perPiecePrice: 9 }
   ]);
 
   const bill = await Bill.create({
@@ -167,6 +169,7 @@ async function seed() {
     { name: 'Admin User', email: 'admin@carepoint.local', password: 'Admin@123', role: 'admin' },
     { name: doctors[0].name, email: 'doctor@carepoint.local', password: 'Doctor@123', role: 'doctor', doctor: doctors[0]._id },
     { name: 'Reception Desk', email: 'reception@carepoint.local', password: 'Reception@123', role: 'receptionist' },
+    { name: 'Medicine Shop', email: 'pharmacy@carepoint.local', password: 'Pharmacy@123', role: 'pharmacist' },
     { name: patients[0].name, email: 'patient@carepoint.local', password: 'Patient@123', role: 'patient', patient: patients[0]._id }
   ]);
 
@@ -175,6 +178,7 @@ async function seed() {
     { role: 'Admin', email: 'admin@carepoint.local', password: 'Admin@123' },
     { role: 'Doctor', email: 'doctor@carepoint.local', password: 'Doctor@123' },
     { role: 'Receptionist', email: 'reception@carepoint.local', password: 'Reception@123' },
+    { role: 'Medicine Shop', email: 'pharmacy@carepoint.local', password: 'Pharmacy@123' },
     { role: 'Patient', email: 'patient@carepoint.local', password: 'Patient@123' }
   ]);
   console.log(`Invoice sample bill: ${bill.billNo}`);

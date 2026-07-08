@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const Patient = require('../models/Patient');
 
+const portalPath = (role) => (role === 'pharmacist' ? '/pharmacy' : `/${role}`);
+
 async function nextPatientId() {
   const latest = await Patient.findOne({ patientId: /^PAT\d+$/ }).sort({ patientId: -1 }).select('patientId').lean();
   const latestNumber = latest?.patientId ? Number(latest.patientId.replace('PAT', '')) : 0;
@@ -8,12 +10,12 @@ async function nextPatientId() {
 }
 
 exports.loginPage = (req, res) => {
-  if (req.session.user) return res.redirect(`/${req.session.user.role}`);
+  if (req.session.user) return res.redirect(portalPath(req.session.user.role));
   res.render('auth/login', { title: 'Login' });
 };
 
 exports.registerPage = (req, res) => {
-  if (req.session.user) return res.redirect(`/${req.session.user.role}`);
+  if (req.session.user) return res.redirect(portalPath(req.session.user.role));
   res.render('auth/register', { title: 'Patient Registration' });
 };
 
@@ -34,7 +36,7 @@ exports.login = async (req, res, next) => {
       patient: user.patient?._id?.toString()
     };
     req.flash('success', `Welcome back, ${user.name}`);
-    res.redirect(`/${user.role}`);
+    res.redirect(portalPath(user.role));
   } catch (error) {
     next(error);
   }

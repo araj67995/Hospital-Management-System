@@ -46,8 +46,24 @@ a { text-decoration: none; }
 .check-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 10px; }
 .check-grid label { border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin: 0; color: #466070; }
 .medicine-section { border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
-.medicine-row { display: grid; grid-template-columns: 1.3fr 1fr .7fr auto auto auto 1.3fr auto; gap: 10px; align-items: center; margin-bottom: 10px; }
+.medicine-row { display: grid; grid-template-columns: 1.2fr .8fr .5fr .75fr .5fr auto auto auto 1.2fr auto; gap: 10px; align-items: center; margin-bottom: 10px; }
 .medicine-row label { margin: 0; white-space: nowrap; font-size: 13px; color: #587082; }
+.stock-picker { display: grid; grid-template-columns: minmax(220px, 320px) 1fr; gap: 12px; margin-bottom: 14px; }
+.stock-picker.compact { grid-template-columns: 260px 1fr; }
+.stock-list { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.stock-chip { min-width: 185px; text-align: left; border: 1px solid var(--line); background: #f8fbfd; border-radius: 8px; padding: 8px 10px; color: var(--text); }
+.stock-chip:hover { border-color: var(--blue); background: #eaf5fc; }
+.stock-chip strong, .stock-chip span { display: block; }
+.stock-chip span { color: #6d8190; font-size: 12px; }
+.billing-builder { border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+.bill-row { display: grid; grid-template-columns: 1fr 1.4fr .55fr .75fr .8fr auto; gap: 10px; align-items: center; margin-bottom: 10px; }
+.shop-grid .bill-row { grid-template-columns: 1.2fr .8fr .75fr .55fr .75fr .8fr auto; }
+.bill-row [readonly] { background: #f4f7f9; }
+.shop-grid { display: grid; grid-template-columns: 1.1fr 1.6fr; gap: 18px; align-items: start; }
+.shop-stock { display: grid; gap: 10px; max-height: 70vh; overflow: auto; }
+.shop-stock .stock-chip { width: 100%; min-width: 0; }
+.billing-note { border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: flex; justify-content: flex-end; gap: 18px; color: #466070; background: #f8fbfd; }
+.billing-note strong { color: var(--green); }
 
 .search-form { position: relative; flex: 1; max-width: 420px; }
 .search-form i { position: absolute; left: 12px; top: 11px; color: #8498a6; }
@@ -96,7 +112,7 @@ a { text-decoration: none; }
   .main-panel { padding: 14px; }
   .dashboard-grid, .form-grid, .settings-grid { grid-template-columns: 1fr; }
   .details-grid { grid-template-columns: 1fr; }
-  .medicine-row { grid-template-columns: 1fr; }
+  .medicine-row, .bill-row, .stock-picker, .stock-picker.compact, .shop-grid { grid-template-columns: 1fr; }
   .check-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .panel-head, .topbar { align-items: stretch; flex-direction: column; }

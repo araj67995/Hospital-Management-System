@@ -5,6 +5,29 @@ const billSchema = new mongoose.Schema(
     billNo: { type: String, required: true, unique: true },
     patient: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
     appointment: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment' },
+    serviceItems: [
+      {
+        category: {
+          type: String,
+          enum: ['Registration', 'Consultation', 'Room', 'Checkup', 'Test', 'Surgery', 'Other'],
+          default: 'Other'
+        },
+        description: String,
+        quantity: { type: Number, default: 1 },
+        rate: { type: Number, default: 0 },
+        amount: { type: Number, default: 0 }
+      }
+    ],
+    medicineItems: [
+      {
+        medicine: { type: mongoose.Schema.Types.ObjectId, ref: 'Medicine' },
+        name: String,
+        unit: { type: String, enum: ['Tablet', 'Bottle', 'Packet', 'Strip', 'Injection', 'Other'], default: 'Tablet' },
+        quantity: { type: Number, default: 1 },
+        rate: { type: Number, default: 0 },
+        amount: { type: Number, default: 0 }
+      }
+    ],
     registrationFee: { type: Number, default: 0 },
     consultationFee: { type: Number, default: 0 },
     roomCharges: { type: Number, default: 0 },
@@ -23,6 +46,32 @@ const billSchema = new mongoose.Schema(
 );
 
 billSchema.pre('validate', function calculateBill(next) {
+  this.serviceItems = (this.serviceItems || []).map((item) => {
+    item.quantity = Number(item.quantity || 0);
+    item.rate = Number(item.rate || 0);
+    item.amount = Number(item.amount || item.quantity * item.rate || 0);
+    return item;
+  });
+  this.medicineItems = (this.medicineItems || []).map((item) => {
+    item.quantity = Number(item.quantity || 0);
+    item.rate = Number(item.rate || 0);
+    item.amount = Number(item.amount || item.quantity * item.rate || 0);
+    return item;
+  });
+  if (this.serviceItems.length) {
+    const sumByCategory = (category) => this.serviceItems
+      .filter((item) => item.category === category)
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    this.registrationFee = sumByCategory('Registration');
+    this.consultationFee = sumByCategory('Consultation');
+    this.roomCharges = sumByCategory('Room');
+    this.testCharges = sumByCategory('Test') + sumByCategory('Checkup');
+    this.surgeryCharges = sumByCategory('Surgery');
+    this.otherCharges = sumByCategory('Other');
+  }
+  if (this.medicineItems.length) {
+    this.medicineCharges = this.medicineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  }
   const gross = this.registrationFee + this.consultationFee + this.roomCharges + this.medicineCharges + this.testCharges + this.surgeryCharges + this.otherCharges;
   const taxable = Math.max(gross - this.discount, 0);
   this.total = taxable + this.gst;
