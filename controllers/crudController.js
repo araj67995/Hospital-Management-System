@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const User = require('../models/User');
 const Doctor = require('../models/Doctor');
 const Appointment = require('../models/Appointment');
+const Medicine = require('../models/Medicine');
 
 function getNested(obj, path) {
   return path.split('.').reduce((acc, key) => (acc ? acc[key] : undefined), obj);
@@ -26,7 +27,82 @@ async function loadOptions(resource) {
   for (const field of config.fields.filter((item) => item.type === 'ref')) {
     options[field.name] = await field.ref.model.find().sort(field.ref.label).lean();
   }
+  if (resource === 'prescriptions' || resource === 'bills') {
+    options.stockMedicines = await Medicine.find({ quantity: { $gt: 0 } }).sort('name').lean();
+  }
   return options;
+}
+
+function arrayFromBody(value) {
+  if (!value) return [];
+  return Array.isArray(value) ? value : Object.values(value);
+}
+
+function normalizeMedicineItems(items) {
+  return arrayFromBody(items)
+    .map((item) => {
+      const quantity = Number(item.quantity || 0);
+      const rate = Number(item.rate || item.sellingPrice || 0);
+      return {
+        medicine: item.medicine || undefined,
+        name: item.name,
+        unit: item.unit || 'Tablet',
+        quantity,
+        rate,
+        amount: Number(item.amount || quantity * rate || 0)
+      };
+    })
+    .filter((item) => item.name && item.quantity > 0);
+}
+
+function normalizeServiceItems(items) {
+  return arrayFromBody(items)
+    .map((item) => {
+      const quantity = Number(item.quantity || 0);
+      const rate = Number(item.rate || 0);
+      return {
+        category: item.category || 'Other',
+        description: item.description,
+        quantity,
+        rate,
+        amount: Number(item.amount || quantity * rate || 0)
+      };
+    })
+    .filter((item) => item.description && item.quantity > 0);
+}
+
+async function applyMedicineStockChange(previousItems = [], nextItems = []) {
+  const stockChanges = medicineStockChanges(previousItems, nextItems);
+  await assertMedicineStock(stockChanges);
+  for (const [medicineId, delta] of stockChanges.entries()) {
+    if (delta) await Medicine.findByIdAndUpdate(medicineId, { $inc: { quantity: delta } });
+  }
+}
+
+function medicineStockChanges(previousItems = [], nextItems = []) {
+  const stockChanges = new Map();
+  previousItems.forEach((item) => {
+    if (!item.medicine) return;
+    const key = String(item.medicine);
+    stockChanges.set(key, (stockChanges.get(key) || 0) + Number(item.quantity || 0));
+  });
+  nextItems.forEach((item) => {
+    if (!item.medicine) return;
+    const key = String(item.medicine);
+    stockChanges.set(key, (stockChanges.get(key) || 0) - Number(item.quantity || 0));
+  });
+  return stockChanges;
+}
+
+async function assertMedicineStock(stockChanges) {
+  for (const [medicineId, delta] of stockChanges.entries()) {
+    if (!delta) continue;
+    if (delta < 0) {
+      const medicine = await Medicine.findById(medicineId).select('name quantity').lean();
+      if (!medicine) throw new Error('Medicine not found in stock');
+      if (medicine.quantity < Math.abs(delta)) throw new Error(`${medicine.name} has only ${medicine.quantity} in stock`);
+    }
+  }
 }
 
 function normalizeBody(resource, body, file) {
@@ -35,7 +111,7 @@ function normalizeBody(resource, body, file) {
   for (const field of config.fields) {
     if (field.virtual || field.type === 'file') continue;
     if (field.auto) continue;
-    if (resource === 'receptionists' && field.name === 'password' && !body.password) continue;
+    if (['receptionists', 'pharmacists'].includes(resource) && field.name === 'password' && !body.password) continue;
     if (resource === 'doctors' && field.name === 'password') continue;
     if (field.type === 'checkbox-group') {
       const values = body[field.name] ? [].concat(body[field.name]) : [];
@@ -51,11 +127,13 @@ function normalizeBody(resource, body, file) {
   if (file && config.uploadField) data[config.uploadField] = `/${file.path.replace(/\\/g, '/')}`;
 
   if (resource === 'prescriptions') {
-    const medicines = Array.isArray(body.medicines) ? body.medicines : Object.values(body.medicines || {});
-    data.medicines = medicines
+    data.medicines = arrayFromBody(body.medicines)
       .map((medicine) => ({
+        medicine: medicine.medicine || undefined,
         name: medicine.name,
         dosage: medicine.dosage,
+        quantity: Number(medicine.quantity || 1),
+        unit: medicine.unit || 'Tablet',
         morning: Boolean(medicine.morning),
         afternoon: Boolean(medicine.afternoon),
         night: Boolean(medicine.night),
@@ -63,6 +141,15 @@ function normalizeBody(resource, body, file) {
         instructions: medicine.instructions
       }))
       .filter((medicine) => medicine.name);
+  }
+  if (resource === 'bills') {
+    data.serviceItems = normalizeServiceItems(body.serviceItems);
+    data.medicineItems = normalizeMedicineItems(body.medicineItems);
+  }
+  if (resource === 'medicines') {
+    data.perUnitPrice = Number(data.perUnitPrice || data.sellingPrice || 0);
+    data.perPiecePrice = Number(data.perPiecePrice || 0);
+    data.sellingPrice = Number(data.sellingPrice || data.perUnitPrice || 0);
   }
 
   return data;
@@ -150,7 +237,9 @@ exports.create = (resource, basePath = '/admin') => async (req, res, next) => {
         data.department = doctor?.department;
       }
     }
+    if (resource === 'bills') await assertMedicineStock(medicineStockChanges([], data.medicineItems || []));
     const item = await config.model.create(data);
+    if (resource === 'bills') await applyMedicineStockChange([], item.medicineItems || []);
     if (resource === 'doctors') {
       await User.create({
         name: item.name,
@@ -194,8 +283,11 @@ exports.update = (resource, basePath = '/admin') => async (req, res, next) => {
         data.department = doctor?.department;
       }
     }
-    if (resource === 'receptionists' && data.password) data.password = await bcrypt.hash(data.password, 12);
+    if (['receptionists', 'pharmacists'].includes(resource) && data.password) data.password = await bcrypt.hash(data.password, 12);
+    const previous = resource === 'bills' ? await config.model.findById(req.params.id).select('medicineItems').lean() : null;
+    if (resource === 'bills') await assertMedicineStock(medicineStockChanges(previous?.medicineItems || [], data.medicineItems || []));
     const item = await config.model.findByIdAndUpdate(req.params.id, data, { runValidators: true, new: true });
+    if (resource === 'bills' && item) await applyMedicineStockChange(previous?.medicineItems || [], item.medicineItems || []);
     if (resource === 'doctors' && item) {
       const userData = { name: item.name, email: item.email, role: 'doctor', doctor: item._id };
       if (req.body.password) userData.password = await bcrypt.hash(req.body.password, 12);

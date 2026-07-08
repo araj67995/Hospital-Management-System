@@ -2,18 +2,41 @@
 <form class="panel form-grid needs-validation" method="post" enctype="multipart/form-data" action="<%= basePath %>/<%= resource %><%= item._id ? '/' + item._id + '?_method=PUT' : '' %>" novalidate>
   <% config.fields.forEach(field => { %>
     <div class="<%= field.type === 'textarea' || (resource === 'prescriptions' && field.name === 'medicines') ? 'span-2' : '' %>">
-      <label class="form-label"><%= field.label %></label>
+      <% const hiddenBillCharge = resource === 'bills' && ['consultationFee', 'roomCharges', 'medicineCharges', 'testCharges', 'surgeryCharges', 'otherCharges'].includes(field.name); %>
+      <% if (!hiddenBillCharge) { %><label class="form-label"><%= field.label %></label><% } %>
       <% if (resource === 'prescriptions' && field.name === 'medicines') { %>
         <div class="span-2 medicine-section" data-medicine-list>
           <div class="panel-head">
-            <h2>Medicines</h2>
+            <h2>Prescription Medicines</h2>
             <button class="btn btn-outline-primary btn-sm" type="button" data-add-medicine><i class="fa-solid fa-plus"></i> Add Medicine</button>
           </div>
-          <% const meds = item.medicines && item.medicines.length ? item.medicines : [{ name: '', dosage: '', morning: false, afternoon: false, night: false, days: '', instructions: '' }]; %>
+          <div class="stock-picker">
+            <div>
+              <label class="form-label">Available Stock Medicine</label>
+              <input class="form-control" type="search" placeholder="Search available medicine" data-stock-search>
+            </div>
+            <div class="stock-list" data-stock-list>
+              <% (options.stockMedicines || []).forEach(stock => { %>
+                <button class="stock-chip" type="button" data-stock-add data-id="<%= stock._id %>" data-name="<%= stock.name %>" data-rate="<%= stock.sellingPrice || 0 %>" data-quantity="<%= stock.quantity || 0 %>">
+                  <strong><%= stock.name %></strong>
+                  <span><%= stock.quantity %> in stock | Rs. <%= Number(stock.sellingPrice || 0).toFixed(2) %></span>
+                </button>
+              <% }) %>
+              <% if (!(options.stockMedicines || []).length) { %><p class="empty-line">No stock medicines available.</p><% } %>
+            </div>
+          </div>
+          <% const meds = item.medicines && item.medicines.length ? item.medicines : [{ name: '', dosage: '', quantity: 1, unit: 'Tablet', morning: false, afternoon: false, night: false, days: '', instructions: '' }]; %>
           <% meds.forEach((medicine, index) => { %>
             <div class="medicine-row" data-medicine-row>
+              <input type="hidden" name="medicines[<%= index %>][medicine]" value="<%= medicine.medicine || '' %>" data-medicine-id>
               <input class="form-control" name="medicines[<%= index %>][name]" value="<%= medicine.name || '' %>" placeholder="Medicine" required>
               <input class="form-control" name="medicines[<%= index %>][dosage]" value="<%= medicine.dosage || '' %>" placeholder="Dosage">
+              <input class="form-control" type="number" min="1" name="medicines[<%= index %>][quantity]" value="<%= medicine.quantity || 1 %>" placeholder="Qty">
+              <select class="form-select" name="medicines[<%= index %>][unit]">
+                <% ['Tablet', 'Bottle', 'Packet', 'Strip', 'Injection', 'Other'].forEach(unit => { %>
+                  <option value="<%= unit %>" <%= medicine.unit === unit ? 'selected' : '' %>><%= unit %></option>
+                <% }) %>
+              </select>
               <input class="form-control" type="number" name="medicines[<%= index %>][days]" value="<%= medicine.days || '' %>" placeholder="Days">
               <label><input type="checkbox" name="medicines[<%= index %>][morning]" value="true" <%= medicine.morning ? 'checked' : '' %>> Morning</label>
               <label><input type="checkbox" name="medicines[<%= index %>][afternoon]" value="true" <%= medicine.afternoon ? 'checked' : '' %>> Afternoon</label>
@@ -23,6 +46,67 @@
             </div>
           <% }) %>
         </div>
+      <% } else if (resource === 'bills' && field.name === 'registrationFee') { %>
+        <div class="span-2 billing-builder" data-bill-builder>
+          <div class="panel-head">
+            <h2>Hospital Charges</h2>
+            <button class="btn btn-outline-primary btn-sm" type="button" data-add-service><i class="fa-solid fa-plus"></i> Add Charge</button>
+          </div>
+          <% const services = item.serviceItems && item.serviceItems.length ? item.serviceItems : [
+            { category: 'Registration', description: 'Registration fee', quantity: 1, rate: item.registrationFee || 0 },
+            { category: 'Consultation', description: 'Doctor meetup', quantity: 1, rate: item.consultationFee || 0 }
+          ].filter(row => row.rate || !item._id); %>
+          <div data-service-list>
+            <% services.forEach((service, index) => { %>
+              <div class="bill-row" data-service-row>
+                <select class="form-select" name="serviceItems[<%= index %>][category]">
+                  <% ['Registration', 'Consultation', 'Room', 'Checkup', 'Test', 'Surgery', 'Other'].forEach(category => { %>
+                    <option value="<%= category %>" <%= service.category === category ? 'selected' : '' %>><%= category %></option>
+                  <% }) %>
+                </select>
+                <input class="form-control" name="serviceItems[<%= index %>][description]" value="<%= service.description || '' %>" placeholder="Description">
+                <input class="form-control" type="number" min="1" name="serviceItems[<%= index %>][quantity]" value="<%= service.quantity || 1 %>" placeholder="Qty" data-line-qty>
+                <input class="form-control" type="number" min="0" step="0.01" name="serviceItems[<%= index %>][rate]" value="<%= service.rate || 0 %>" placeholder="Rate" data-line-rate>
+                <input class="form-control" type="number" name="serviceItems[<%= index %>][amount]" value="<%= service.amount || ((service.quantity || 1) * (service.rate || 0)) %>" placeholder="Amount" data-line-amount readonly>
+                <button class="btn btn-outline-danger btn-sm" type="button" data-remove-line><i class="fa-solid fa-trash"></i></button>
+              </div>
+            <% }) %>
+          </div>
+          <div class="panel-head mt-3">
+            <h2>Medicine Charges</h2>
+            <button class="btn btn-outline-primary btn-sm" type="button" data-add-bill-medicine><i class="fa-solid fa-plus"></i> Add Medicine</button>
+          </div>
+          <div class="stock-picker compact">
+            <input class="form-control" type="search" placeholder="Search medicine stock" data-stock-search>
+            <div class="stock-list" data-stock-list>
+              <% (options.stockMedicines || []).forEach(stock => { %>
+                <button class="stock-chip" type="button" data-bill-stock-add data-id="<%= stock._id %>" data-name="<%= stock.name %>" data-rate="<%= stock.sellingPrice || 0 %>" data-quantity="<%= stock.quantity || 0 %>">
+                  <strong><%= stock.name %></strong><span><%= stock.quantity %> stock | Rs. <%= Number(stock.sellingPrice || 0).toFixed(2) %></span>
+                </button>
+              <% }) %>
+            </div>
+          </div>
+          <div data-bill-medicine-list>
+            <% const billMeds = item.medicineItems && item.medicineItems.length ? item.medicineItems : []; %>
+            <% billMeds.forEach((medicine, index) => { %>
+              <div class="bill-row" data-bill-medicine-row>
+                <input type="hidden" name="medicineItems[<%= index %>][medicine]" value="<%= medicine.medicine || '' %>" data-medicine-id>
+                <input class="form-control" name="medicineItems[<%= index %>][name]" value="<%= medicine.name || '' %>" placeholder="Medicine">
+                <select class="form-select" name="medicineItems[<%= index %>][unit]">
+                  <% ['Tablet', 'Bottle', 'Packet', 'Strip', 'Injection', 'Other'].forEach(unit => { %>
+                    <option value="<%= unit %>" <%= medicine.unit === unit ? 'selected' : '' %>><%= unit %></option>
+                  <% }) %>
+                </select>
+                <input class="form-control" type="number" min="1" name="medicineItems[<%= index %>][quantity]" value="<%= medicine.quantity || 1 %>" placeholder="Qty" data-line-qty>
+                <input class="form-control" type="number" min="0" step="0.01" name="medicineItems[<%= index %>][rate]" value="<%= medicine.rate || 0 %>" placeholder="Rate" data-line-rate>
+                <input class="form-control" type="number" name="medicineItems[<%= index %>][amount]" value="<%= medicine.amount || ((medicine.quantity || 1) * (medicine.rate || 0)) %>" placeholder="Amount" data-line-amount readonly>
+                <button class="btn btn-outline-danger btn-sm" type="button" data-remove-line><i class="fa-solid fa-trash"></i></button>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } else if (resource === 'bills' && ['consultationFee', 'roomCharges', 'medicineCharges', 'testCharges', 'surgeryCharges', 'otherCharges'].includes(field.name)) { %>
+        <input type="hidden" name="<%= field.name %>" value="<%= item[field.name] || 0 %>">
       <% } else if (field.type === 'checkbox-group') { %>
         <div class="check-grid" data-max-checks="<%= field.max || '' %>">
           <% field.options.forEach(option => { %>

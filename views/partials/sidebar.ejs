@@ -1,5 +1,5 @@
 <aside class="sidebar">
-  <a class="brand" href="<%= currentUser ? '/' + currentUser.role : '/login' %>">
+  <a class="brand" href="<%= currentUser ? (currentUser.role === 'pharmacist' ? '/pharmacy' : '/' + currentUser.role) : '/login' %>">
     <i class="fa-solid fa-staff-snake"></i>
     <strong><%= hospitalName %></strong>
   </a>
@@ -9,9 +9,11 @@
       <a href="/admin/doctors"><i class="fa-solid fa-user-doctor"></i> Doctors</a>
       <a href="/admin/patients"><i class="fa-solid fa-bed-pulse"></i> Patients</a>
       <a href="/admin/receptionists"><i class="fa-solid fa-headset"></i> Receptionists</a>
+      <a href="/admin/pharmacists"><i class="fa-solid fa-prescription-bottle-medical"></i> Shop Staff</a>
       <a href="/admin/departments"><i class="fa-solid fa-building"></i> Departments</a>
       <a href="/admin/rooms"><i class="fa-solid fa-door-open"></i> Rooms</a>
       <a href="/admin/medicines"><i class="fa-solid fa-pills"></i> Medicines</a>
+      <a href="/pharmacy"><i class="fa-solid fa-store"></i> Medicine Shop</a>
       <a href="/admin/appointments"><i class="fa-solid fa-calendar-check"></i> Appointments</a>
       <a href="/admin/bills"><i class="fa-solid fa-file-invoice-dollar"></i> Billing</a>
       <a href="/admin/reports"><i class="fa-solid fa-file-medical"></i> Reports</a>
@@ -33,7 +35,14 @@
       <a href="/receptionist/appointments"><i class="fa-solid fa-calendar-plus"></i> Appointments</a>
       <a href="/receptionist/admissions"><i class="fa-solid fa-procedures"></i> Admissions</a>
       <a href="/receptionist/bills"><i class="fa-solid fa-receipt"></i> Billing</a>
+      <a href="/pharmacy"><i class="fa-solid fa-store"></i> Medicine Shop</a>
+      <a href="/receptionist/medicines"><i class="fa-solid fa-pills"></i> Stock</a>
       <a href="/receptionist/search"><i class="fa-solid fa-magnifying-glass"></i> Search</a>
+    </nav>
+  <% } else if (currentUser && currentUser.role === 'pharmacist') { %>
+    <nav>
+      <a href="/pharmacy"><i class="fa-solid fa-store"></i> Medicine Shop</a>
+      <a href="/pharmacy/medicines"><i class="fa-solid fa-pills"></i> Stock</a>
     </nav>
   <% } else if (currentUser && currentUser.role === 'patient') { %>
     <nav>

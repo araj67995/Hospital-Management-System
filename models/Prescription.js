@@ -9,8 +9,11 @@ const prescriptionSchema = new mongoose.Schema(
     notes: String,
     medicines: [
       {
+        medicine: { type: mongoose.Schema.Types.ObjectId, ref: 'Medicine' },
         name: String,
         dosage: String,
+        quantity: { type: Number, default: 1 },
+        unit: { type: String, enum: ['Tablet', 'Bottle', 'Packet', 'Strip', 'Injection', 'Other'], default: 'Tablet' },
         morning: Boolean,
         afternoon: Boolean,
         night: Boolean,

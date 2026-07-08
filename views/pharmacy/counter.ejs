@@ -1,0 +1,78 @@
+<%- include('../partials/header') %>
+<section class="shop-grid">
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Available Medicines</h2>
+      <a class="btn btn-outline-primary btn-sm" href="<%= currentUser.role === 'admin' ? '/admin/medicines' : currentUser.role === 'receptionist' ? '/receptionist/medicines' : '/pharmacy/medicines' %>"><i class="fa-solid fa-boxes-stacked"></i> Manage Stock</a>
+    </div>
+    <input class="form-control mb-3" type="search" placeholder="Search medicine" data-stock-search>
+    <div class="shop-stock stock-list" data-stock-list>
+      <% medicines.forEach(medicine => { %>
+        <button class="stock-chip" type="button" data-pharmacy-stock-add data-id="<%= medicine._id %>" data-name="<%= medicine.name %>" data-rate="<%= medicine.perUnitPrice || medicine.sellingPrice || 0 %>" data-piece-rate="<%= medicine.perPiecePrice || 0 %>" data-unit="<%= medicine.unitName || 'Packet' %>" data-quantity="<%= medicine.quantity || 0 %>" <%= medicine.quantity <= 0 ? 'disabled' : '' %>>
+          <strong><%= medicine.name %></strong>
+          <span><%= medicine.company || 'Medicine' %> | Batch <%= medicine.batchNumber %></span>
+          <span><%= medicine.quantity %> stock | Unit Rs. <%= Number(medicine.perUnitPrice || medicine.sellingPrice || 0).toFixed(2) %> | Piece Rs. <%= Number(medicine.perPiecePrice || 0).toFixed(2) %></span>
+        </button>
+      <% }) %>
+    </div>
+  </div>
+
+  <form class="panel needs-validation" method="post" action="/pharmacy/bills" novalidate>
+    <div class="panel-head">
+      <h2>Medicine Bill</h2>
+      <button class="btn btn-outline-primary btn-sm" type="button" data-add-pharmacy-medicine><i class="fa-solid fa-plus"></i> Add Row</button>
+    </div>
+    <div class="form-grid mb-3">
+      <div>
+        <label class="form-label">Patient</label>
+        <select class="form-select" name="patient">
+          <option value="">Walk-in Customer</option>
+          <% patients.forEach(patient => { %>
+            <option value="<%= patient._id %>"><%= patient.patientId %> - <%= patient.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Customer Name</label>
+        <input class="form-control" name="customerName" placeholder="For walk-in sale">
+      </div>
+    </div>
+    <div data-pharmacy-list></div>
+    <div class="billing-note mt-3">
+      <label class="form-label">Total</label>
+      <input class="form-control" type="text" name="total" value="0" readonly>
+      <span>GST 18%</span>
+      <strong>Discount 10%</strong>
+    </div>
+     <div>
+        <label class="form-label">Paid Amount</label>
+        <input class="form-control" type="number" min="0" step="0.01" name="paidAmount" value="" required>
+        <label class="form-label">Return Amount</label>
+        <input class="form-control" type="number" name="returnAmount" value="0" min="0" step="0.01" readonly>
+      </div>
+    <div class="form-actions mt-3">
+      <button class="btn btn-primary"><i class="fa-solid fa-file-invoice-dollar"></i> Generate Bill</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Recent Medicine Bills</h2></div>
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead><tr><th>Bill No</th><th>Customer</th><th>Total</th><th>Status</th><th class="text-end">Invoice</th></tr></thead>
+      <tbody>
+        <% recentBills.forEach(bill => { %>
+          <tr>
+            <td><%= bill.billNo %></td>
+            <td><%= bill.patient?.name || bill.customerName || 'Walk-in Customer' %></td>
+            <td>Rs. <%= Number(bill.total || 0).toFixed(2) %></td>
+            <td><span class="badge text-bg-primary"><%= bill.status %></span></td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-success" href="/pharmacy/<%= bill._id %>/invoice"><i class="fa-solid fa-file-pdf"></i></a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</section>
+<%- include('../partials/footer') %>

@@ -36,6 +36,7 @@ app.use('/doctor', require('./routes/doctorRoutes'));
 app.use('/receptionist', require('./routes/receptionistRoutes'));
 app.use('/patient', require('./routes/patientRoutes'));
 app.use('/billing', require('./routes/billingRoutes'));
+app.use('/pharmacy', require('./routes/pharmacyRoutes'));
 
 app.use((req, res) => {
   res.status(404).render('error', { title: 'Page Not Found', message: 'The page you requested does not exist.' });

@@ -10,7 +10,10 @@ const medicineSchema = new mongoose.Schema(
     quantity: { type: Number, default: 0 },
     lowStockLimit: { type: Number, default: 10 },
     purchasePrice: { type: Number, default: 0 },
-    sellingPrice: { type: Number, default: 0 }
+    sellingPrice: { type: Number, default: 0 },
+    unitName: { type: String, default: 'Packet' },
+    perUnitPrice: { type: Number, default: 0 },
+    perPiecePrice: { type: Number, default: 0 }
   },
   { timestamps: true }
 );
