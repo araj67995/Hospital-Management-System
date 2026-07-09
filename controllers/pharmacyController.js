@@ -70,7 +70,8 @@ exports.createBill = async (req, res, next) => {
     req.flash('success', `Medicine bill ${bill.billNo} generated`);
     res.redirect(`/pharmacy/${bill._id}/invoice`);
   } catch (error) {
-    next(error);
+    req.flash('error', error.message || 'Error generating bill');
+    res.redirect('/pharmacy');
   }
 };
 

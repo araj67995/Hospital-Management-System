@@ -70,12 +70,26 @@ document.addEventListener('click', (event) => {
   if (addService) addServiceRow();
   if (addBillMedicine) addBillMedicineRow();
   if (addPharmacyMedicine) addPharmacyMedicineRow();
-  if (removeLine) removeLine.closest('[data-service-row], [data-bill-medicine-row], [data-pharmacy-row]').remove();
+  if (removeLine) {
+    const row = removeLine.closest('[data-service-row], [data-bill-medicine-row], [data-pharmacy-row]');
+    const isPharmacy = row && row.hasAttribute('data-pharmacy-row');
+    if (row) row.remove();
+    if (isPharmacy) updatePharmacyBillSummary();
+  }
 });
 
 document.addEventListener('input', (event) => {
   if (event.target.matches('[data-stock-search]')) filterStockList(event.target);
-  if (event.target.matches('[data-line-qty], [data-line-rate]')) updateLineAmount(event.target.closest('[data-service-row], [data-bill-medicine-row], [data-pharmacy-row]'));
+  if (event.target.matches('[data-line-qty], [data-line-rate]')) {
+    const row = event.target.closest('[data-service-row], [data-bill-medicine-row], [data-pharmacy-row]');
+    updateLineAmount(row);
+    if (row && row.hasAttribute('data-pharmacy-row')) {
+      updatePharmacyBillSummary();
+    }
+  }
+  if (event.target.matches('[data-bill-paid]')) {
+    updatePharmacyBillSummary();
+  }
 });
 
 document.addEventListener('change', (event) => {
@@ -84,6 +98,7 @@ document.addEventListener('change', (event) => {
     const rate = row?.querySelector('[data-line-rate]');
     if (rate) rate.value = event.target.value === 'piece' ? event.target.dataset.pieceRate || 0 : event.target.dataset.unitRate || 0;
     updateLineAmount(row);
+    updatePharmacyBillSummary();
   }
 });
 
@@ -187,6 +202,7 @@ function addPharmacyMedicineRow(button) {
     <button class="btn btn-outline-danger btn-sm" type="button" data-remove-line><i class="fa-solid fa-trash"></i></button>
   `;
   list.appendChild(row);
+  updatePharmacyBillSummary();
 }
 
 document.addEventListener('click', (event) => {
@@ -200,6 +216,95 @@ function updateLineAmount(row) {
   const rate = Number(row.querySelector('[data-line-rate]')?.value || 0);
   const amount = row.querySelector('[data-line-amount]');
   if (amount) amount.value = (qty * rate).toFixed(2);
+}
+
+function updatePharmacyBillSummary() {
+  const pharmacyList = document.querySelector('[data-pharmacy-list]');
+  if (!pharmacyList) return;
+
+  let subtotal = 0;
+  pharmacyList.querySelectorAll('[data-pharmacy-row]').forEach((row) => {
+    const qty = Number(row.querySelector('[data-line-qty]')?.value || 0);
+    const rate = Number(row.querySelector('[data-line-rate]')?.value || 0);
+    const amount = qty * rate;
+    subtotal += amount;
+  });
+
+  const subtotalInput = document.querySelector('[data-bill-subtotal]');
+  const gstInput = document.querySelector('[data-bill-gst]');
+  const discountInput = document.querySelector('[data-bill-discount]');
+  const totalInput = document.querySelector('[data-bill-total]');
+  const paidInput = document.querySelector('[data-bill-paid]');
+  const returnInput = document.querySelector('[data-bill-return]');
+
+  if (subtotalInput) subtotalInput.value = subtotal.toFixed(2);
+
+  const gst = Number((subtotal * 0.18).toFixed(2));
+  if (gstInput) gstInput.value = gst.toFixed(2);
+
+  const discount = Number(((subtotal + gst) * 0.10).toFixed(2));
+  if (discountInput) discountInput.value = discount.toFixed(2);
+
+  const total = Math.max(subtotal + gst - discount, 0);
+  if (totalInput) totalInput.value = total.toFixed(2);
+
+  const paidAmount = Number(paidInput?.value || 0);
+  const returnAmount = Math.max(paidAmount - total, 0);
+  if (returnInput) returnInput.value = returnAmount.toFixed(2);
+}
+
+// Initialize on page load if pharmacy elements exist
+if (document.querySelector('[data-pharmacy-list]')) {
+  updatePharmacyBillSummary();
+
+  const patientIdInput = document.getElementById('patient-id-input');
+  const patientDbIdInput = document.getElementById('patient-db-id');
+  const customerNameInput = document.getElementById('customer-name-input');
+  const customerMobileInput = document.getElementById('customer-mobile-input');
+  const statusDiv = document.getElementById('patient-id-status');
+
+  let patients = [];
+  try {
+    const patientsScript = document.getElementById('patients-data');
+    if (patientsScript) {
+      patients = JSON.parse(patientsScript.textContent);
+    }
+  } catch (err) {
+    console.error('Failed to parse patients data:', err);
+  }
+
+  if (patientIdInput) {
+    patientIdInput.addEventListener('input', () => {
+      const typedId = patientIdInput.value.trim().toUpperCase();
+      if (!typedId) {
+        patientDbIdInput.value = '';
+        customerNameInput.value = '';
+        customerMobileInput.value = '';
+        customerNameInput.readOnly = false;
+        customerMobileInput.readOnly = false;
+        statusDiv.textContent = '';
+        statusDiv.className = 'small text-muted mt-1';
+        return;
+      }
+
+      const patient = patients.find(p => p.patientId && p.patientId.toUpperCase() === typedId);
+      if (patient) {
+        patientDbIdInput.value = patient._id;
+        customerNameInput.value = patient.name || '';
+        customerMobileInput.value = patient.mobile || '';
+        customerNameInput.readOnly = true;
+        customerMobileInput.readOnly = true;
+        statusDiv.textContent = `✓ Patient verified: ${patient.name}`;
+        statusDiv.className = 'small text-success mt-1';
+      } else {
+        patientDbIdInput.value = '';
+        customerNameInput.readOnly = false;
+        customerMobileInput.readOnly = false;
+        statusDiv.textContent = '⚠ ID not registered. Treating as walk-in customer.';
+        statusDiv.className = 'small text-warning mt-1';
+      }
+    });
+  }
 }
 
 document.querySelectorAll('[data-max-checks]').forEach((group) => {
