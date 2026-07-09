@@ -39,17 +39,59 @@
     </div>
     <div data-pharmacy-list></div>
     <div class="billing-note mt-3">
-      <label class="form-label">Total</label>
-      <input class="form-control" type="text" name="total" value="0" readonly>
-      <span>GST 18%</span>
-      <strong>Discount 10%</strong>
+
+    <div class="mb-2">
+        <label class="form-label">Subtotal</label>
+        <input class="form-control" type="text" readonly value="0" data-bill-subtotal>
     </div>
-     <div>
+
+    <div class="mb-2">
+        <label class="form-label">GST (18%)</label>
+        <input class="form-control" type="text" readonly value="0" data-bill-gst>
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label">Discount (10%)</label>
+        <input class="form-control" type="text" readonly value="0" data-bill-discount>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label fw-bold">Grand Total</label>
+        <input class="form-control fw-bold"
+               type="text"
+               name="total"
+               readonly
+               value="0"
+               data-bill-total>
+    </div>
+
+</div>
+
+<div class="row">
+
+    <div class="col-md-6">
         <label class="form-label">Paid Amount</label>
-        <input class="form-control" type="number" min="0" step="0.01" name="paidAmount" value="" required>
+        <input
+            class="form-control"
+            type="number"
+            min="0"
+            step="0.01"
+            name="paidAmount"
+            data-bill-paid
+            required>
+    </div>
+
+    <div class="col-md-6">
         <label class="form-label">Return Amount</label>
-        <input class="form-control" type="number" name="returnAmount" value="0" min="0" step="0.01" readonly>
-      </div>
+        <input
+            class="form-control"
+            type="text"
+            readonly
+            value="0"
+            data-bill-return>
+    </div>
+
+</div>
     <div class="form-actions mt-3">
       <button class="btn btn-primary"><i class="fa-solid fa-file-invoice-dollar"></i> Generate Bill</button>
     </div>
