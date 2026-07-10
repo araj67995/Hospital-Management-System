@@ -1,9 +1,11 @@
 const meta = require('./meta');
 const bcrypt = require('bcrypt');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Doctor = require('../models/Doctor');
 const Appointment = require('../models/Appointment');
 const Medicine = require('../models/Medicine');
+const Patient = require('../models/Patient');
 
 function getNested(obj, path) {
   return path.split('.').reduce((acc, key) => (acc ? acc[key] : undefined), obj);
@@ -155,6 +157,21 @@ function normalizeBody(resource, body, file) {
   return data;
 }
 
+async function resolveRefIds(config, data) {
+  for (const field of config.fields.filter((item) => item.type === 'ref')) {
+    const val = String(data[field.name] || '').trim();
+    if (val) {
+      if (mongoose.Types.ObjectId.isValid(val)) continue;
+      const doc = await field.ref.model.findOne({ [field.ref.label]: val }).select('_id').lean();
+      if (doc) {
+        data[field.name] = doc._id;
+      } else {
+        throw new Error(`Invalid ${field.label}: "${val}" not found`);
+      }
+    }
+  }
+}
+
 exports.list = (resource, basePath = '/admin') => async (req, res, next) => {
   try {
     const config = meta[resource];
@@ -165,7 +182,39 @@ exports.list = (resource, basePath = '/admin') => async (req, res, next) => {
 
     if (search) {
       const searchable = ['name', 'email', 'mobile', 'patientId', 'doctorId', 'appointmentNo', 'billNo', 'roomNumber', 'batchNumber', 'title'];
-      query.$or = searchable.map((field) => ({ [field]: new RegExp(search, 'i') }));
+      const orQuery = searchable
+        .filter((field) => config.model.schema.paths[field])
+        .map((field) => ({ [field]: new RegExp(search, 'i') }));
+
+      const [matchingPatients, matchingAppointments] = await Promise.all([
+        Patient.find({
+          $or: [
+            { patientId: new RegExp(search, 'i') },
+            { name: new RegExp(search, 'i') },
+            { mobile: new RegExp(search, 'i') },
+            { email: new RegExp(search, 'i') }
+          ]
+        }).select('_id').lean(),
+        Appointment.find({
+          appointmentNo: new RegExp(search, 'i')
+        }).select('_id').lean()
+      ]);
+
+      const patientIds = matchingPatients.map((p) => p._id);
+      const appointmentIds = matchingAppointments.map((a) => a._id);
+
+      if (config.model.schema.paths.patient && patientIds.length) {
+        orQuery.push({ patient: { $in: patientIds } });
+      }
+      if (config.model.schema.paths.appointment && appointmentIds.length) {
+        orQuery.push({ appointment: { $in: appointmentIds } });
+      }
+
+      if (orQuery.length) {
+        query.$or = orQuery;
+      } else {
+        query._id = null;
+      }
     }
 
     let dbQuery = config.model.find(query);
@@ -214,6 +263,7 @@ exports.create = (resource, basePath = '/admin') => async (req, res, next) => {
   try {
     const config = meta[resource];
     const data = normalizeBody(resource, req.body, req.file);
+    await resolveRefIds(config, data);
     if (resource === 'prescriptions') {
       const appointment = await Appointment.findById(data.appointment).lean();
       if (!appointment) {
@@ -260,6 +310,7 @@ exports.update = (resource, basePath = '/admin') => async (req, res, next) => {
   try {
     const config = meta[resource];
     const data = normalizeBody(resource, req.body, req.file);
+    await resolveRefIds(config, data);
     if (resource === 'prescriptions') {
       const appointment = await Appointment.findById(data.appointment).lean();
       if (!appointment) {

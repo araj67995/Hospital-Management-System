@@ -8,7 +8,7 @@ const pharmacyBillSchema = new mongoose.Schema(
     customerMobile: String,
     items: [
       {
-        medicine: { type: mongoose.Schema.Types.ObjectId, ref: 'Medicine', required: true },
+        medicine: { type: mongoose.Schema.Types.ObjectId, ref: 'Medicine' },
         name: String,
         unit: { type: String, enum: ['Tablet', 'Bottle', 'Packet', 'Strip', 'Injection', 'Other'], default: 'Tablet' },
         priceType: { type: String, enum: ['unit', 'piece'], default: 'unit' },

@@ -177,28 +177,43 @@ function addBillMedicineRow(button) {
   list.appendChild(row);
 }
 
-function addPharmacyMedicineRow(button) {
+function addPharmacyMedicineRow(button, defaultQty = 1) {
   const list = document.querySelector('[data-pharmacy-list]');
   if (!list) return;
   const index = list.querySelectorAll('[data-pharmacy-row]').length;
   const row = document.createElement('div');
   row.className = 'bill-row';
   row.dataset.pharmacyRow = '';
+  
+  const isManual = !button;
   const medicineName = escapeAttr(button?.dataset.name || '');
   const unitName = escapeAttr(button?.dataset.unit || 'Packet');
   const unitRate = button?.dataset.rate || 0;
   const pieceRate = button?.dataset.pieceRate || 0;
+  const stockQty = isManual ? 99999 : Number(button?.dataset.quantity || 0);
+
+  const stockLabel = isManual
+    ? ''
+    : (stockQty === 0
+      ? `<span class="badge text-bg-danger d-block mt-1" data-stock-label style="font-size: 11px;">Not Available (0 left)</span>`
+      : `<span class="badge text-bg-info d-block mt-1" data-stock-label style="font-size: 11px;">In Stock (${stockQty} left)</span>`);
+
+  const initialQty = !isManual && stockQty === 0 ? 0 : Math.min(defaultQty, stockQty);
+
   row.innerHTML = `
     <input type="hidden" name="items[${index}][medicine]" value="${button?.dataset.id || ''}" data-medicine-id>
-    <input class="form-control" name="items[${index}][name]" value="${medicineName}" placeholder="Medicine" required>
+    <div>
+      <input class="form-control" name="items[${index}][name]" value="${medicineName}" placeholder="Medicine" required>
+      ${stockLabel}
+    </div>
     <select class="form-select" name="items[${index}][unit]">${unitOptions(unitName)}</select>
     <select class="form-select" name="items[${index}][priceType]" data-price-type data-unit-rate="${unitRate}" data-piece-rate="${pieceRate}">
       <option value="unit">Per Unit</option>
       <option value="piece">Per Piece</option>
     </select>
-    <input class="form-control" type="number" min="1" max="${button?.dataset.quantity || ''}" name="items[${index}][quantity]" value="1" placeholder="Qty" data-line-qty>
+    <input class="form-control" type="number" min="${!isManual && stockQty === 0 ? 0 : 1}" ${isManual ? '' : `max="${stockQty}"`} name="items[${index}][quantity]" value="${initialQty}" placeholder="Qty" data-line-qty ${!isManual && stockQty === 0 ? 'disabled' : ''}>
     <input class="form-control" type="number" min="0" step="0.01" name="items[${index}][rate]" value="${unitRate}" placeholder="Rate" data-line-rate>
-    <input class="form-control" type="number" name="items[${index}][amount]" value="${unitRate}" placeholder="Amount" data-line-amount readonly>
+    <input class="form-control" type="number" name="items[${index}][amount]" value="${(initialQty * unitRate).toFixed(2)}" placeholder="Amount" data-line-amount readonly>
     <button class="btn btn-outline-danger btn-sm" type="button" data-remove-line><i class="fa-solid fa-trash"></i></button>
   `;
   list.appendChild(row);
@@ -264,13 +279,19 @@ if (document.querySelector('[data-pharmacy-list]')) {
   const statusDiv = document.getElementById('patient-id-status');
 
   let patients = [];
+  let medicines = [];
+  let prescriptions = [];
   try {
     const patientsScript = document.getElementById('patients-data');
-    if (patientsScript) {
-      patients = JSON.parse(patientsScript.textContent);
-    }
+    if (patientsScript) patients = JSON.parse(patientsScript.textContent);
+
+    const medicinesScript = document.getElementById('medicines-data');
+    if (medicinesScript) medicines = JSON.parse(medicinesScript.textContent);
+
+    const prescriptionsScript = document.getElementById('prescriptions-data');
+    if (prescriptionsScript) prescriptions = JSON.parse(prescriptionsScript.textContent);
   } catch (err) {
-    console.error('Failed to parse patients data:', err);
+    console.error('Failed to parse serialized data:', err);
   }
 
   if (patientIdInput) {
@@ -284,6 +305,10 @@ if (document.querySelector('[data-pharmacy-list]')) {
         customerMobileInput.readOnly = false;
         statusDiv.textContent = '';
         statusDiv.className = 'small text-muted mt-1';
+
+        const list = document.querySelector('[data-pharmacy-list]');
+        if (list) list.innerHTML = '';
+        updatePharmacyBillSummary();
         return;
       }
 
@@ -296,12 +321,53 @@ if (document.querySelector('[data-pharmacy-list]')) {
         customerMobileInput.readOnly = true;
         statusDiv.textContent = `✓ Patient verified: ${patient.name}`;
         statusDiv.className = 'small text-success mt-1';
+
+        // Auto-load prescribed medicines
+        const list = document.querySelector('[data-pharmacy-list]');
+        if (list) list.innerHTML = '';
+
+        const prescription = prescriptions.find(p => String(p.patient) === String(patient._id));
+        if (prescription && prescription.medicines && prescription.medicines.length) {
+          prescription.medicines.forEach(prescribedMed => {
+            const stockMed = medicines.find(m => m.name.toLowerCase() === prescribedMed.name.toLowerCase());
+            if (stockMed) {
+              const simButton = {
+                dataset: {
+                  id: stockMed._id,
+                  name: stockMed.name,
+                  rate: stockMed.perUnitPrice || stockMed.sellingPrice || 0,
+                  pieceRate: stockMed.perPiecePrice || 0,
+                  unit: stockMed.unitName || 'Packet',
+                  quantity: stockMed.quantity || 0
+                }
+              };
+              addPharmacyMedicineRow(simButton, prescribedMed.quantity || 1);
+            } else {
+              const simButton = {
+                dataset: {
+                  id: '',
+                  name: prescribedMed.name,
+                  rate: 0,
+                  pieceRate: 0,
+                  unit: prescribedMed.unit || 'Packet',
+                  quantity: 0
+                }
+              };
+              addPharmacyMedicineRow(simButton, prescribedMed.quantity || 1);
+            }
+          });
+          statusDiv.innerHTML = `✓ Patient verified: ${patient.name}<br><span class="text-info" style="font-size: 11px;">Latest prescription loaded automatically (${prescription.medicines.length} items).</span>`;
+        }
       } else {
         patientDbIdInput.value = '';
         customerNameInput.readOnly = false;
         customerMobileInput.readOnly = false;
         statusDiv.textContent = '⚠ ID not registered. Treating as walk-in customer.';
         statusDiv.className = 'small text-warning mt-1';
+
+        const list = document.querySelector('[data-pharmacy-list]');
+        if (list) list.innerHTML = '';
+        updatePharmacyBillSummary();
       }
     });
   }
@@ -319,16 +385,80 @@ document.querySelectorAll('[data-max-checks]').forEach((group) => {
   });
 });
 
-function syncRefDetail(select) {
-  const detailInput = select.parentElement.querySelector('[data-ref-detail]');
+function syncRefDetail(input) {
+  const detailInput = input.parentElement.querySelector('[data-ref-detail]');
   if (!detailInput) return;
-  detailInput.value = select.selectedOptions[0]?.dataset.detail || '';
+
+  const datalist = document.getElementById(input.getAttribute('list'));
+  if (!datalist) return;
+
+  const typedValue = input.value.trim().toUpperCase();
+  const option = Array.from(datalist.options).find(opt => opt.value.trim().toUpperCase() === typedValue);
+  
+  detailInput.value = option ? option.dataset.detail || '' : '';
 }
 
-document.querySelectorAll('[data-ref-select]').forEach((select) => {
-  syncRefDetail(select);
-  select.addEventListener('change', () => syncRefDetail(select));
+document.querySelectorAll('[data-ref-select]').forEach((input) => {
+  syncRefDetail(input);
+  input.addEventListener('change', () => syncRefDetail(input));
+  input.addEventListener('input', () => syncRefDetail(input));
 });
+
+// Auto-charges fetch and rendering for Billing form
+if (document.querySelector('[data-bill-builder]')) {
+  const patientInput = document.querySelector('input[name="patient"]');
+  const appointmentInput = document.querySelector('input[name="appointment"]');
+
+  let debounceTimer;
+  const fetchAutoCharges = () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async () => {
+      const patientVal = patientInput?.value || '';
+      const appointmentVal = appointmentInput?.value || '';
+      if (!patientVal && !appointmentVal) return;
+
+      try {
+        const res = await fetch(`/billing/auto-charges?patientVal=${encodeURIComponent(patientVal)}&appointmentVal=${encodeURIComponent(appointmentVal)}`);
+        const data = await res.json();
+        if (data.serviceItems && data.serviceItems.length) {
+          const list = document.querySelector('[data-service-list]');
+          if (list) {
+            list.innerHTML = '';
+            data.serviceItems.forEach((service, index) => {
+              const row = document.createElement('div');
+              row.className = 'bill-row';
+              row.dataset.serviceRow = '';
+              row.innerHTML = `
+                <select class="form-select" name="serviceItems[${index}][category]">
+                  ${['Registration', 'Consultation', 'Room', 'Checkup', 'Test', 'Surgery', 'Other']
+                    .map((cat) => `<option value="${cat}" ${service.category === cat ? 'selected' : ''}>${cat}</option>`)
+                    .join('')}
+                </select>
+                <input class="form-control" name="serviceItems[${index}][description]" value="${escapeAttr(service.description)}" placeholder="Description">
+                <input class="form-control" type="number" min="1" name="serviceItems[${index}][quantity]" value="${service.quantity}" placeholder="Qty" data-line-qty>
+                <input class="form-control" type="number" min="0" step="0.01" name="serviceItems[${index}][rate]" value="${service.rate}" placeholder="Rate" data-line-rate>
+                <input class="form-control" type="number" name="serviceItems[${index}][amount]" value="${service.amount.toFixed(2)}" placeholder="Amount" data-line-amount readonly>
+                <button class="btn btn-outline-danger btn-sm" type="button" data-remove-line><i class="fa-solid fa-trash"></i></button>
+              `;
+              list.appendChild(row);
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load auto-charges:', err);
+      }
+    }, 250);
+  };
+
+  if (patientInput) {
+    patientInput.addEventListener('change', fetchAutoCharges);
+    patientInput.addEventListener('input', fetchAutoCharges);
+  }
+  if (appointmentInput) {
+    appointmentInput.addEventListener('change', fetchAutoCharges);
+    appointmentInput.addEventListener('input', fetchAutoCharges);
+  }
+}
 
 function makeChart(id, type, labels, data, color) {
   const canvas = document.getElementById(id);

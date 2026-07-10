@@ -30,12 +30,24 @@
             <% }) %>
             <td class="text-end">
               <% if (resource === 'bills') { %>
-                <a class="btn btn-sm btn-outline-success" href="/billing/<%= item._id %>/invoice"><i class="fa-solid fa-file-pdf"></i></a>
+                <a class="btn btn-sm btn-outline-success" href="/billing/<%= item._id %>/invoice" title="Print Invoice"><i class="fa-solid fa-print"></i></a>
               <% } %>
-              <a class="btn btn-sm btn-outline-primary" href="<%= basePath %>/<%= resource %>/<%= item._id %>/edit"><i class="fa-solid fa-pen"></i></a>
+              <% if (resource === 'appointments') { %>
+                <a class="btn btn-sm btn-outline-success" href="/billing/appointments/<%= item._id %>/print" title="Print Slip"><i class="fa-solid fa-print"></i></a>
+              <% } %>
+              <% if (resource === 'prescriptions') { %>
+                <a class="btn btn-sm btn-outline-success" href="/billing/prescriptions/<%= item._id %>/print" title="Print Prescription"><i class="fa-solid fa-print"></i></a>
+              <% } %>
+              <% if (resource === 'reports') { %>
+                <a class="btn btn-sm btn-outline-success" href="/billing/reports/<%= item._id %>/print" title="Print Diagnostic Report"><i class="fa-solid fa-print"></i></a>
+              <% } %>
+              <% if (resource === 'admissions') { %>
+                <a class="btn btn-sm btn-outline-success" href="/billing/admissions/<%= item._id %>/print" title="Print Discharge Summary"><i class="fa-solid fa-print"></i></a>
+              <% } %>
+              <a class="btn btn-sm btn-outline-primary" href="<%= basePath %>/<%= resource %>/<%= item._id %>/edit" title="Edit"><i class="fa-solid fa-pen"></i></a>
               <% if (currentUser.role !== 'doctor') { %>
                 <form class="d-inline delete-form" method="post" action="<%= basePath %>/<%= resource %>/<%= item._id %>?_method=DELETE">
-                  <button class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash"></i></button>
+                  <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="fa-solid fa-trash"></i></button>
                 </form>
               <% } %>
             </td>
