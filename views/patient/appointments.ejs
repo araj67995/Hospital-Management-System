@@ -6,7 +6,7 @@
   </div>
   <div class="table-responsive">
     <table class="table align-middle">
-      <thead><tr><th>Date</th><th>Time</th><th>Doctor</th><th>Department</th><th>Status</th><th>Notes</th></tr></thead>
+      <thead><tr><th>Date</th><th>Time</th><th>Doctor</th><th>Department</th><th>Status</th><th>Notes</th><th class="text-end">OPD Slip</th></tr></thead>
       <tbody>
         <% appointments.forEach(item => { %>
           <tr>
@@ -16,6 +16,7 @@
             <td><%= item.department?.name || '-' %></td>
             <td><span class="badge text-bg-primary"><%= item.status %></span></td>
             <td><%= item.notes || '-' %></td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-success" href="/billing/appointments/<%= item._id %>/print" target="_blank"><i class="fa-solid fa-print"></i> Print</a></td>
           </tr>
         <% }) %>
       </tbody>

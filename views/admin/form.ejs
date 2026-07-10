@@ -121,14 +121,19 @@
           <% }) %>
         </select>
       <% } else if (field.type === 'ref') { %>
-        <select class="form-select" name="<%= field.name %>" <%= field.required ? 'required' : '' %> data-ref-select>
-          <option value="">Select</option>
+        <% const selectedOption = (options[field.name] || []).find(o => String(o._id) === String(item[field.name] || '')); %>
+        <% const initialValue = selectedOption ? selectedOption[field.ref.label] : ''; %>
+        <input class="form-control" name="<%= field.name %>" value="<%= initialValue %>" list="<%= field.name %>-list" <%= field.required ? 'required' : '' %> placeholder="Type to search..." autocomplete="off" data-ref-select>
+        <datalist id="<%= field.name %>-list">
           <% (options[field.name] || []).forEach(option => { %>
             <% const primary = option[field.ref.label] || ''; const detail = field.ref.detail ? option[field.ref.detail] : ''; %>
-            <option value="<%= option._id %>" data-detail="<%= detail %>" <%= String(item[field.name] || '') === String(option._id) ? 'selected' : '' %>><%= primary %><%= detail ? ' - ' + detail : '' %></option>
+            <option value="<%= primary %>" data-detail="<%= detail %>"><%= primary %><%= detail ? ' - ' + detail : '' %></option>
           <% }) %>
-        </select>
-        <% if (field.ref.detail) { %><input class="form-control mt-2" type="text" data-ref-detail placeholder="Name will appear here" readonly><% } %>
+        </datalist>
+        <% if (field.ref.detail) { %>
+          <% const initialDetail = selectedOption && field.ref.detail ? selectedOption[field.ref.detail] : ''; %>
+          <input class="form-control mt-2" type="text" data-ref-detail placeholder="Name will appear here" value="<%= initialDetail %>" readonly>
+        <% } %>
       <% } else if (field.type === 'textarea') { %>
         <textarea class="form-control" name="<%= field.name %>" rows="3" <%= field.required ? 'required' : '' %>><%= item[field.name] || '' %></textarea>
       <% } else if (field.type === 'file') { %>
